@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin access - users with admin custom claim
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Merchant access - authenticated users accessing their own data
+    function isMerchantOwner(merchantId) {
+      return request.auth != null && request.auth.uid == merchantId;
+    }
+    
+    // Merchants collection - merchants can only access their own document
+    match /merchants/{merchantId} {
+      allow read, write: if isAdmin() || isMerchantOwner(merchantId);
+    }
+    
+    // Stores collection - merchants can only access their own stores
+    match /stores/{storeId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+    
+    // API Keys collection - merchants can only access their own keys
+    match /apiKeys/{keyId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+    
+    // Invoices collection - merchants can only access their own invoices
+    match /invoices/{invoiceId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+    
+    // Payments collection - merchants can only access their own payments
+    match /payments/{paymentId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+    
+    // Balances collection - merchants can only access their own balances
+    match /balances/{balanceId} {
+      allow read, write: if isAdmin() || (request.auth != null && balanceId.split('_')[0] == request.auth.uid);
+    }
+    
+    // Withdrawals collection - merchants can only access their own withdrawals
+    match /withdrawals/{withdrawalId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+    
+    // Webhooks collection - admin only
+    match /webhooks/{deliveryId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Fees collection - admin only
+    match /fees/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Rates collection - read-only for authenticated users, write for admin
+    match /rates/{symbol} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Addresses collection - merchants can only access their own addresses
+    match /addresses/{addressId} {
+      allow read, write: if isAdmin() || isMerchantOwner(resource.data.merchantId);
+    }
+  }
+}
